@@ -51,3 +51,73 @@ Predicted the result before running it. Ordered 2x Jollof (25 min, food)
 and 1x Chapman (8 min, drink). Expected max(50, 8) + 5 = 55 minutes,
 not 50 + 8 + 5 = 63, because the kitchen and bar work at the same time.
 API returned wait_minutes 55 and total 41,000. Correct.
+### Front end
+Built the React front end as a single App.jsx holding six components:
+the role switch, menu, checkout, order status, waiter list and waiter
+detail.
+
+Design decisions:
+- Mobile-first, because the customer's real context is a phone at a
+  table. Layout uses a centred container capped at 720px, so it fills
+  the screen on a phone and centres with margins on a laptop rather
+  than stretching the menu across a whole monitor.
+- Colours set as CSS variables in one place, so the palette can be
+  changed without hunting through the stylesheet. Warm food palette:
+  paprika, turmeric, herb green, cream.
+- Fraunces for headings, Inter for body text.
+- The cart bar is fixed to the bottom of the screen, where a thumb
+  rests on a phone.
+
+Problems hit:
+- Vite dev server appeared to fail with ERR_CONNECTION_REFUSED. The
+  server had actually started and then stopped, because I pressed a key
+  in the terminal window. A running dev server holds the window with no
+  prompt; a $ prompt means it has exited.
+- localhost:5173 would not open on my phone. localhost means "this
+  machine", so the phone was looking at itself. Needs `npm run dev --
+  --host` and the network address, or waiting until deployment.
+## Thursday evening — user feedback
+
+Gave the working app to my mum to try, as a first real user who had not
+seen it being built. Her feedback:
+
+1. **The role switch is confusing.** She could see the waiter's view by
+   tapping a button at the top, and said that was strange for an app a
+   customer uses.
+2. **Add a cart.** She wanted to see what she had selected before
+   ordering.
+3. **Add a delivery option.**
+4. **More menu items** — water, soft drinks, wine, and more variety in
+   both food and drinks.
+5. **VAT and service charge**, as Nigerian restaurants show on a bill.
+
+### What I decided
+
+**Keeping the role switch, but making it less prominent.** The brief
+requires a way to act as both customer and waiter, and says a simple
+switch is enough, so removing it would fail a requirement. Instead I
+will make it smaller and label it as a staff view so it reads as a
+demonstration control rather than a customer feature.
+
+**The cart already exists** — the bar at the bottom of the menu showing
+the item count and total, and the review screen before placing the
+order. She did not notice it, which is useful in itself: it needs to be
+more obvious.
+
+**Not adding delivery.** The brief describes a customer at a table who
+pays just before leaving the restaurant. Delivery would contradict that
+story rather than extend it.
+
+**Adding more menu items.** Costs nothing and makes the menu feel like a
+real restaurant.
+
+**Adding VAT and service charge.** This is the strongest suggestion.
+Nigerian restaurants charge 7.5% VAT and often a service charge, so
+showing a subtotal, VAT, service charge and total makes the payment
+screen behave like a real bill instead of a single figure.
+6. **The design looks plain.** She wanted a logo, icons and images.
+**Adding a logo and food images.** Fair point — the menu is text only,
+and a restaurant menu with no pictures of the food is unusual. Adding a
+Chowly wordmark and images to the menu items is the single change that
+would most improve first impressions, and the brief awards bonus marks
+for an application that is beautifully designed and well presented.
