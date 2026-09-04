@@ -9,6 +9,7 @@
   --paprika-dark: #E04A05;
   --turmeric: #F2A83B;
   --herb:     #4F7A4A;
+  --blue:     #2E5A94;
 
   --radius: 14px;
   --shadow: 0 1px 2px rgba(90,45,16,.06), 0 8px 24px rgba(90,45,16,.08);
@@ -38,53 +39,73 @@ h2 { font-size: 1.35rem; }
 h3 { font-size: 1.05rem; }
 
 /* ---------- logo ---------- */
-.logo-img { display: block; width: auto; }
+.logo-img { display: block; width: auto; max-width: 100%; }
 
 /* ---------- landing ---------- */
 .landing {
   min-height: 100vh; display: flex; align-items: center; justify-content: center;
   padding: 24px 16px;
-  background:
-    radial-gradient(1100px 420px at 15% -5%, #FFEDE0 0%, transparent 60%),
-    radial-gradient(900px 380px at 90% 105%, #E6F1EA 0%, transparent 60%),
-    var(--cream);
+  background: var(--cream);
 }
 .landing-inner { width: 100%; max-width: 560px; text-align: center; }
 .landing-brand {
-  line-height: 0; margin-bottom: 10px;
+  line-height: 0; margin-bottom: 4px;
   display: flex; justify-content: center;
   animation: rise .5s ease both;
 }
 .landing-tag {
-  color: var(--clay); margin: 0 0 30px; font-size: 1rem;
+  color: var(--clay); margin: 0 0 28px; font-size: 1.05rem;
   animation: rise .5s .06s ease both;
 }
 
-.doors { display: grid; gap: 14px; }
+.doors { display: grid; gap: 16px; }
 @media (min-width: 560px) { .doors { grid-template-columns: 1fr 1fr; } }
 
 .door {
-  display: block; width: 100%; text-align: center;
+  display: block; width: 100%; text-align: left;
   font: inherit; cursor: pointer;
-  background: var(--card); border: 2px solid var(--line);
-  border-radius: 20px; padding: 34px 24px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 20px; padding: 24px 22px 20px;
   box-shadow: var(--shadow);
-  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
   animation: rise .5s ease both;
+  color: var(--ink);
+  position: relative; overflow: hidden;
 }
+.door::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px;
+}
+.door.dine::before  { background: var(--paprika); }
+.door.staff::before { background: var(--blue); }
+
 .door.dine  { animation-delay: .12s; }
 .door.staff { animation-delay: .18s; }
-.door:hover { transform: translateY(-4px); box-shadow: 0 14px 34px rgba(90,45,16,.15); }
-.door.dine:hover  { border-color: var(--paprika); background: #FFFAF6; }
-.door.staff:hover { border-color: var(--herb);    background: #FAFCF9; }
+.door:hover { transform: translateY(-5px); box-shadow: 0 16px 38px rgba(90,45,16,.15); }
+.door.dine:hover  { border-color: var(--paprika); }
+.door.staff:hover { border-color: var(--blue); }
 .door:active { transform: translateY(-1px); }
 
-.door-icon { display: block; font-size: 2.4rem; line-height: 1; margin-bottom: 12px; }
+.door-head { display: flex; align-items: center; gap: 3px; margin-bottom: 8px; }
+.door-icon { display: block; flex-shrink: 0; }
+.door-icon svg { width: 34px; height: 34px; display: block; }
+.door.dine  .door-icon { color: var(--paprika); }
+.door.staff .door-icon { color: var(--blue); }
+
 .door-title {
-  display: block; font-family: Fraunces, serif;
-  font-size: 1.5rem; font-weight: 600; margin-bottom: 5px;
+  font-family: Fraunces, serif;
+  font-size: 1.5rem; font-weight: 700; margin: 0;
 }
-.door-sub { display: block; color: var(--clay); font-size: .9rem; }
+.door-sub { display: block; font-size: .88rem; color: var(--clay); margin-bottom: 16px; }
+.door-cta {
+  display: flex; align-items: center; gap: 6px;
+  font-size: .82rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .08em;
+  padding-top: 12px; border-top: 1px solid var(--line);
+}
+.door.dine  .door-cta { color: var(--paprika); }
+.door.staff .door-cta { color: var(--blue); }
+.door-cta svg { width: 14px; height: 14px; }
+.door:hover .door-cta svg { transform: translateX(4px); transition: transform .18s; }
 
 @keyframes rise {
   from { opacity: 0; transform: translateY(14px); }
@@ -160,7 +181,7 @@ button.btn {
 /* ---------- status ---------- */
 .status { font-size: .72rem; font-weight: 600; padding: 4px 10px; border-radius: 999px; }
 .status.placed   { background: #FFF1DF; color: #A8620F; }
-.status.assigned { background: #E8EEF7; color: #2E5A94; }
+.status.assigned { background: #E8EEF7; color: var(--blue); }
 .status.served   { background: #E7F0E6; color: var(--herb); }
 .status.paid     { background: #EDE7F3; color: #5B4380; }
 

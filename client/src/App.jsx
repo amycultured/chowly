@@ -43,23 +43,48 @@ function Logo({ height = 34 }) {
 /* ---------------- LANDING ---------------- */
 
 function Landing({ onPick }) {
+  const Arrow = () => (
+    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M2 8h11M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2"
+            strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+
   return (
     <div className="landing">
       <div className="landing-inner">
-        <div className="landing-brand"><Logo height={72} /></div>
+        <div className="landing-brand"><Logo height={140} /></div>
         <p className="landing-tag">Order from your table. Pay when you're done.</p>
-
+        
         <div className="doors">
           <button className="door dine" onClick={() => onPick('customer')}>
-            <span className="door-icon" aria-hidden="true">🍽️</span>
-            <span className="door-title">I'm dining</span>
+            <span className="door-head">
+              <span className="door-icon">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M4 3v7a3 3 0 0 0 3 3v8M7 3v6M10 3v6M17 3c-1.5 2-2 4-2 7 0 1.7 1 3 2 3v8"
+                        stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <span className="door-title">I'm dining</span>
+            </span>
             <span className="door-sub">Browse the menu and place an order</span>
+            <span className="door-cta">Continue <Arrow /></span>
           </button>
 
           <button className="door staff" onClick={() => onPick('waiter')}>
-            <span className="door-icon" aria-hidden="true">🧾</span>
-            <span className="door-title">Staff</span>
+            <span className="door-head">
+              <span className="door-icon">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2Z" stroke="currentColor"
+                        strokeWidth="1.9" strokeLinejoin="round" />
+                  <path d="M9.5 7h5M9.5 11h5M9.5 15h3" stroke="currentColor"
+                        strokeWidth="1.9" strokeLinecap="round" />
+                </svg>
+              </span>
+              <span className="door-title">Staff</span>
+            </span>
             <span className="door-sub">Assign orders and mark them served</span>
+            <span className="door-cta">Continue <Arrow /></span>
           </button>
         </div>
       </div>
