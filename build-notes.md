@@ -121,3 +121,44 @@ and a restaurant menu with no pictures of the food is unusual. Adding a
 Chowly wordmark and images to the menu items is the single change that
 would most improve first impressions, and the brief awards bonus marks
 for an application that is beautifully designed and well presented.
+## Friday 4 September
+
+### Landing page instead of a role switch
+My mum's objection was that a customer shouldn't be able to see the
+waiter's screens. Redesigned the entry point: a landing page with two
+large buttons, "I'm dining" and "Staff". The customer picks a door and
+stays in it, with a small switch control in the header to go back.
+
+This still satisfies the brief, which asks for a way to act as both
+roles and says a simple switch is enough. It just makes the separation
+obvious rather than putting both worlds behind one toggle.
+
+### Logo
+Claude generated an SVG logo — a chef's hat beside the wordmark. I
+rejected it and made my own instead: an outlined chef's hat tilted off
+the C, brown wordmark with "ly" in orange.
+
+Having a real logo changed the palette. The original colours were
+guesses; the actual brand colours come from the logo — orange #FF5A0F
+and brown #5A2D10. Updated the CSS variables so the whole app follows
+the logo rather than the other way round.
+
+### Problem: partial file edits kept destroying code
+Claude twice gave me a replacement for one function rather than the
+whole file. Both times the surrounding code was lost when I pasted it.
+
+The second time was worse: replacing the App function silently deleted
+Menu, OrderStatus, WaiterView and WaiterOrder — four components, the
+entire application. The page went blank with "Landing is not defined",
+which pointed at the wrong thing; the real problem was everything after
+App had gone.
+
+Diagnosed it with:
+
+    grep -n "function" client/src/App.jsx
+
+which listed only three functions where there should have been seven.
+
+Lesson: full-file replacements are reliable, partial ones are not. From
+here I ask for the whole file when a change touches more than a few
+lines, and run that grep to check what survived.

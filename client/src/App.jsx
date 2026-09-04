@@ -3,18 +3,23 @@ import { useState, useEffect } from 'react'
 const naira = n => '₦' + Number(n).toLocaleString('en-NG')
 
 export default function App() {
-  const [role, setRole] = useState('customer')
+  const [role, setRole] = useState(null)
   const [orderId, setOrderId] = useState(null)
+
+  if (!role) return <Landing onPick={setRole} />
 
   return (
     <>
       <header className="topbar">
         <div className="topbar-inner">
-          <div className="brand">Chow<span>ly</span></div>
-          <div className="switch">
-            <button className={role === 'customer' ? 'on' : ''} onClick={() => setRole('customer')}>Customer</button>
-            <button className={role === 'waiter' ? 'on' : ''} onClick={() => setRole('waiter')}>Waiter</button>
+          <div className="brand" onClick={() => { setRole(null); setOrderId(null) }}
+               style={{ cursor: 'pointer' }}>
+            <Logo />
           </div>
+          <button className="btn ghost" style={{ padding: '7px 14px', fontSize: '.85rem' }}
+                  onClick={() => { setRole(null); setOrderId(null) }}>
+            {role === 'customer' ? 'Dining' : 'Staff'} · switch
+          </button>
         </div>
       </header>
 
@@ -26,6 +31,39 @@ export default function App() {
           : <WaiterView />}
       </main>
     </>
+  )
+}
+
+/* ---------------- LOGO ---------------- */
+
+function Logo({ height = 34 }) {
+  return <img src="/chowly-logo.png" alt="Chowly" className="logo-img" style={{ height }} />
+}
+
+/* ---------------- LANDING ---------------- */
+
+function Landing({ onPick }) {
+  return (
+    <div className="landing">
+      <div className="landing-inner">
+        <div className="landing-brand"><Logo height={72} /></div>
+        <p className="landing-tag">Order from your table. Pay when you're done.</p>
+
+        <div className="doors">
+          <button className="door dine" onClick={() => onPick('customer')}>
+            <span className="door-icon" aria-hidden="true">🍽️</span>
+            <span className="door-title">I'm dining</span>
+            <span className="door-sub">Browse the menu and place an order</span>
+          </button>
+
+          <button className="door staff" onClick={() => onPick('waiter')}>
+            <span className="door-icon" aria-hidden="true">🧾</span>
+            <span className="door-title">Staff</span>
+            <span className="door-sub">Assign orders and mark them served</span>
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -108,11 +146,7 @@ function Menu({ onPlaced }) {
     )
   }
 
-  const groups = [
-    ['food', 'Food'],
-    ['drink', 'Drinks'],
-    ['dessert', 'Dessert'],
-  ]
+  const groups = [['food', 'Food'], ['drink', 'Drinks'], ['dessert', 'Dessert']]
 
   return (
     <>
@@ -180,7 +214,7 @@ function OrderStatus({ id, onNew }) {
   useEffect(() => { load() }, [id])
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000)
-    const p = setInterval(load, 10000)   // pick up the waiter's updates
+    const p = setInterval(load, 10000)
     return () => { clearInterval(t); clearInterval(p) }
   }, [id])
 
@@ -331,9 +365,9 @@ function WaiterView() {
                 <div className="item-name">Order #{o.id} · Table {o.table_number}</div>
                 <div className="item-meta" style={{ marginTop: 6 }}>
                   <span className={'status ' + o.status}>{o.status}</span>
-                  {late && <span className="pill" style={{ background: '#FBECE9', color: '#C1462D' }}>overdue</span>}
+                  {late && <span className="pill" style={{ background: '#FFE2D8', color: '#E04A05' }}>overdue</span>}
                   {Number(o.complaint_count) > 0 &&
-                    <span className="pill" style={{ background: '#FBECE9', color: '#C1462D' }}>
+                    <span className="pill" style={{ background: '#FFE2D8', color: '#E04A05' }}>
                       {o.complaint_count} complaint{o.complaint_count > 1 ? 's' : ''}</span>}
                   {o.rating_score && <span className="pill">{'★'.repeat(o.rating_score)}</span>}
                 </div>
@@ -366,7 +400,6 @@ function WaiterOrder({ id, onBack }) {
 
   if (!order) return <div className="empty">Loading…</div>
 
-  // drinks go to the bartender, food and dessert to the chef
   const hasDrinks = order.items.some(i => i.category === 'drink')
   const hasFood = order.items.some(i => i.category !== 'drink')
 
