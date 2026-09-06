@@ -8,12 +8,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const VAT_RATE = 0.075;      // 7.5% VAT
+const SERVICE_RATE = 0.05;   // 5% service charge
+const SERVICE_BUFFER = 0;    // no buffer: the estimate is prep time only
 // ---------- MENU ----------
 
-// list every available item, food first
 app.get('/api/menu', async (req, res) => {
   const result = await pool.query(
-    `SELECT id, name, description, price, prep_minutes, category
+    `SELECT id, name, description, price, prep_minutes, category, allergens, image_url
      FROM menu_items
      WHERE is_available = true
      ORDER BY category, name`
@@ -21,9 +23,17 @@ app.get('/api/menu', async (req, res) => {
   res.json(result.rows);
 });
 
+// ---------- TABLES ----------
+
+app.get('/api/tables', async (req, res) => {
+  const result = await pool.query(
+    `SELECT table_number, seats, label FROM restaurant_tables ORDER BY table_number`
+  );
+  res.json(result.rows);
+});
+
 // ---------- STAFF ----------
 
-// list active staff, used by the waiter's dropdowns
 app.get('/api/staff', async (req, res) => {
   const result = await pool.query(
     `SELECT id, name, role FROM staff WHERE is_active = true ORDER BY role, name`
@@ -33,7 +43,6 @@ app.get('/api/staff', async (req, res) => {
 
 // ---------- ORDERS ----------
 
-// place an order
 app.post('/api/orders', async (req, res) => {
   const { table_number, items } = req.body;
 
@@ -45,36 +54,39 @@ app.post('/api/orders', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // read prices and prep times from the database, never from the browser
     const ids = items.map(i => i.menu_item_id);
     const menu = await client.query(
       `SELECT id, price, prep_minutes, category FROM menu_items WHERE id = ANY($1)`,
       [ids]
     );
 
-    let total = 0;
-    let foodMinutes = 0;
-    let drinkMinutes = 0;
+    let subtotal = 0;
+    let kitchenMinutes = 0;
+    let barMinutes = 0;
 
     for (const item of items) {
       const row = menu.rows.find(m => m.id === item.menu_item_id);
       if (!row) throw new Error('Unknown menu item: ' + item.menu_item_id);
 
-      total += Number(row.price) * item.quantity;
+      subtotal += Number(row.price) * item.quantity;
       const minutes = row.prep_minutes * item.quantity;
 
-      // the kitchen and the bar work at the same time, so their
-      // times are accumulated separately rather than added together
-      if (row.category === 'drink') drinkMinutes += minutes;
-      else foodMinutes += minutes;
+      // the kitchen and the bar work at the same time, so their times are
+      // accumulated separately and the longer of the two governs the wait
+      const fromBar = row.category === 'non-alcoholic' || row.category === 'alcoholic';
+      if (fromBar) barMinutes += minutes;
+      else kitchenMinutes += minutes;
     }
 
-    const waitMinutes = Math.max(foodMinutes, drinkMinutes) + 5; // 5 minutes for service
+    const waitMinutes = Math.max(kitchenMinutes, barMinutes) + SERVICE_BUFFER;
+    const vat = Math.round(subtotal * VAT_RATE * 100) / 100;
+    const service = Math.round(subtotal * SERVICE_RATE * 100) / 100;
+    const total = subtotal + vat + service;
 
     const order = await client.query(
-      `INSERT INTO orders (table_number, wait_minutes, total_amount)
-       VALUES ($1, $2, $3) RETURNING *`,
-      [table_number, waitMinutes, total]
+      `INSERT INTO orders (table_number, wait_minutes, subtotal, vat, service_charge, total_amount)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [table_number, waitMinutes, subtotal, vat, service, total]
     );
     const orderId = order.rows[0].id;
 
@@ -97,7 +109,6 @@ app.post('/api/orders', async (req, res) => {
   }
 });
 
-// every order, for the waiter's list
 app.get('/api/orders', async (req, res) => {
   const result = await pool.query(
     `SELECT o.*, w.name AS waiter_name,
@@ -110,7 +121,6 @@ app.get('/api/orders', async (req, res) => {
   res.json(result.rows);
 });
 
-// one order, with its items and everything attached to it
 app.get('/api/orders/:id', async (req, res) => {
   const { id } = req.params;
 
@@ -129,7 +139,7 @@ app.get('/api/orders/:id', async (req, res) => {
   if (order.rowCount === 0) return res.status(404).json({ error: 'Order not found' });
 
   const items = await pool.query(
-    `SELECT oi.quantity, oi.unit_price, m.name, m.category
+    `SELECT oi.quantity, oi.unit_price, m.name, m.category, m.allergens
      FROM order_items oi
      JOIN menu_items m ON m.id = oi.menu_item_id
      WHERE oi.order_id = $1`,
@@ -138,8 +148,7 @@ app.get('/api/orders/:id', async (req, res) => {
 
   const rating = await pool.query(`SELECT * FROM ratings WHERE order_id = $1`, [id]);
   const complaints = await pool.query(
-    `SELECT * FROM complaints WHERE order_id = $1 ORDER BY created_at`,
-    [id]
+    `SELECT * FROM complaints WHERE order_id = $1 ORDER BY created_at`, [id]
   );
   const payment = await pool.query(`SELECT * FROM payments WHERE order_id = $1`, [id]);
 
@@ -154,21 +163,22 @@ app.get('/api/orders/:id', async (req, res) => {
 
 // ---------- WAITER ACTIONS ----------
 
-// the waiter records who prepared the order and marks it served
 app.patch('/api/orders/:id/assign', async (req, res) => {
   const { id } = req.params;
-  const { waiter_id, chef_id, bartender_id, mark_served } = req.body;
+  const { waiter_id, chef_id, bartender_id, mark_served, takeaway } = req.body;
 
   const result = await pool.query(
     `UPDATE orders
      SET waiter_id    = COALESCE($1, waiter_id),
          chef_id      = COALESCE($2, chef_id),
          bartender_id = COALESCE($3, bartender_id),
-         status       = CASE WHEN $4 THEN 'served' ELSE 'assigned' END,
-         served_at    = CASE WHEN $4 THEN NOW() ELSE served_at END
-     WHERE id = $5
+         takeaway     = COALESCE($4, takeaway),
+         status       = CASE WHEN $5 THEN 'served' ELSE 'assigned' END,
+         served_at    = CASE WHEN $5 THEN NOW() ELSE served_at END
+     WHERE id = $6
      RETURNING *`,
-    [waiter_id || null, chef_id || null, bartender_id || null, !!mark_served, id]
+    [waiter_id || null, chef_id || null, bartender_id || null,
+     takeaway === undefined ? null : takeaway, !!mark_served, id]
   );
 
   if (result.rowCount === 0) return res.status(404).json({ error: 'Order not found' });
@@ -199,7 +209,6 @@ app.post('/api/orders/:id/rating', async (req, res) => {
     return res.status(400).json({ error: 'Score must be a whole number from 1 to 5' });
   }
 
-  // one rating per order: a second submission updates the first
   const result = await pool.query(
     `INSERT INTO ratings (order_id, score, comment)
      VALUES ($1, $2, $3)
@@ -210,22 +219,27 @@ app.post('/api/orders/:id/rating', async (req, res) => {
   res.status(201).json(result.rows[0]);
 });
 
-// ---------- PAYMENT (one per order) ----------
-
+// ---------- PAYMENT (one per order, only once served) ----------
 app.post('/api/orders/:id/payment', async (req, res) => {
   const { id } = req.params;
-  const { method } = req.body;
+  const { method, takeaway } = req.body;
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
     const order = await client.query(
-      `SELECT total_amount, status FROM orders WHERE id = $1`,
-      [id]
+      `SELECT total_amount, status FROM orders WHERE id = $1`, [id]
     );
     if (order.rowCount === 0) throw new Error('Order not found');
-    if (order.rows[0].status === 'paid') throw new Error('This order has already been paid');
+
+    const status = order.rows[0].status;
+    if (status === 'paid') throw new Error('This order has already been paid');
+
+    // a customer pays on the way out, so the food must have arrived first
+    if (status !== 'served') {
+      throw new Error('This order has not been served yet. Payment is taken once the food arrives.');
+    }
 
     const payment = await client.query(
       `INSERT INTO payments (order_id, amount, method, is_simulated)
@@ -233,7 +247,10 @@ app.post('/api/orders/:id/payment', async (req, res) => {
       [id, order.rows[0].total_amount, method || 'card']
     );
 
-    await client.query(`UPDATE orders SET status = 'paid' WHERE id = $1`, [id]);
+    await client.query(
+      `UPDATE orders SET status = 'paid', takeaway = $2 WHERE id = $1`,
+      [id, !!takeaway]
+    );
     await client.query('COMMIT');
 
     res.status(201).json(payment.rows[0]);

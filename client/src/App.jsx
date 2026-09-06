@@ -2,9 +2,20 @@ import { useState, useEffect } from 'react'
 
 const naira = n => '₦' + Number(n).toLocaleString('en-NG')
 
+const CATEGORIES = [
+  ['starters',      'Starters',       'cat-starters'],
+  ['nigerian',      'Nigerian Mains', 'cat-nigerian'],
+  ['international', 'International',  'cat-international'],
+  ['sides',         'Sides',          'cat-sides'],
+  ['desserts',      'Desserts',       'cat-desserts'],
+  ['non-alcoholic', 'Non-Alcoholic',  'cat-soft'],
+  ['alcoholic',     'Alcoholic',      'cat-booze'],
+]
+
 export default function App() {
   const [role, setRole] = useState(null)
   const [orderId, setOrderId] = useState(null)
+  const [view, setView] = useState('menu')
 
   if (!role) return <Landing onPick={setRole} />
 
@@ -12,22 +23,31 @@ export default function App() {
     <>
       <header className="topbar">
         <div className="topbar-inner">
-          <div className="brand" onClick={() => { setRole(null); setOrderId(null) }}
-               style={{ cursor: 'pointer' }}>
+          <div className="brand" onClick={() => setRole(null)} style={{ cursor: 'pointer' }}>
             <Logo />
           </div>
-          <button className="btn ghost" style={{ padding: '7px 14px', fontSize: '.85rem' }}
-                  onClick={() => { setRole(null); setOrderId(null) }}>
-            {role === 'customer' ? 'Dining' : 'Staff'} · switch
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {role === 'customer' && orderId && (
+              <button className="btn ghost" style={{ padding: '7px 14px', fontSize: '.85rem' }}
+                      onClick={() => setView(view === 'menu' ? 'order' : 'menu')}>
+                {view === 'menu' ? `Order #${orderId}` : 'Menu'}
+              </button>
+            )}
+            <button className="btn ghost" style={{ padding: '7px 14px', fontSize: '.85rem' }}
+                    onClick={() => setRole(role === 'customer' ? 'waiter' : 'customer')}>
+              {role === 'customer' ? 'Staff' : 'Dining'}
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="page">
         {role === 'customer'
-          ? (orderId
-              ? <OrderStatus id={orderId} onNew={() => setOrderId(null)} />
-              : <Menu onPlaced={setOrderId} />)
+          ? ((orderId && view === 'order')
+              ? <OrderStatus id={orderId}
+                             onBrowse={() => setView('menu')}
+                             onNew={() => { setOrderId(null); setView('menu') }} />
+              : <Menu onPlaced={id => { setOrderId(id); setView('order') }} />)
           : <WaiterView />}
       </main>
     </>
@@ -53,9 +73,9 @@ function Landing({ onPick }) {
   return (
     <div className="landing">
       <div className="landing-inner">
-        <div className="landing-brand"><Logo height={140} /></div>
+        <div className="landing-brand"><Logo height={150} /></div>
         <p className="landing-tag">Order from your table. Pay when you're done.</p>
-        
+
         <div className="doors">
           <button className="door dine" onClick={() => onPick('customer')}>
             <span className="door-head">
@@ -96,14 +116,17 @@ function Landing({ onPick }) {
 
 function Menu({ onPlaced }) {
   const [items, setItems] = useState([])
+  const [tables, setTables] = useState([])
   const [cart, setCart] = useState({})
   const [table, setTable] = useState('')
+  const [openCat, setOpenCat] = useState('starters')
   const [checkout, setCheckout] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     fetch('/api/menu').then(r => r.json()).then(setItems).catch(() => setError('Could not load the menu'))
+    fetch('/api/tables').then(r => r.json()).then(setTables).catch(() => {})
   }, [])
 
   const add = id => setCart(c => ({ ...c, [id]: (c[id] || 0) + 1 }))
@@ -118,8 +141,12 @@ function Menu({ onPlaced }) {
     ...items.find(i => i.id === Number(id)), quantity: qty
   })).filter(l => l.id)
 
-  const total = lines.reduce((s, l) => s + Number(l.price) * l.quantity, 0)
+  const subtotal = lines.reduce((s, l) => s + Number(l.price) * l.quantity, 0)
+  const vat = subtotal * 0.075
+  const service = subtotal * 0.05
+  const total = subtotal + vat + service
   const count = lines.reduce((s, l) => s + l.quantity, 0)
+  const chosen = tables.find(t => t.table_number === Number(table))
 
   async function submit() {
     setBusy(true); setError('')
@@ -143,6 +170,7 @@ function Menu({ onPlaced }) {
       <>
         <h1>Your order</h1>
         <p className="muted">Check everything over before you send it to the kitchen.</p>
+
         <div className="card">
           {lines.map(l => (
             <div className="row" key={l.id}>
@@ -150,14 +178,26 @@ function Menu({ onPlaced }) {
               <span className="price">{naira(Number(l.price) * l.quantity)}</span>
             </div>
           ))}
+          <div className="row"><span className="muted">Subtotal</span><span>{naira(subtotal)}</span></div>
+          <div className="row"><span className="muted">VAT (7.5%)</span><span>{naira(vat)}</span></div>
+          <div className="row"><span className="muted">Service charge (5%)</span><span>{naira(service)}</span></div>
           <div className="row"><strong>Total</strong><strong className="price">{naira(total)}</strong></div>
         </div>
 
         <div className="card">
           <div className="field">
             <label htmlFor="table">Which table are you at?</label>
-            <input id="table" type="number" min="1" value={table}
-              onChange={e => setTable(e.target.value)} placeholder="e.g. 5" />
+            <select id="table" value={table} onChange={e => setTable(e.target.value)}>
+              <option value="">Choose your table</option>
+              {tables.map(t => (
+                <option key={t.table_number} value={t.table_number}>{t.label}</option>
+              ))}
+            </select>
+            {chosen && (
+              <p className="muted" style={{ marginTop: 6, marginBottom: 0 }}>
+                Seats up to {chosen.seats} people
+              </p>
+            )}
           </div>
           {error && <div className="banner pretend">{error}</div>}
           <button className="btn primary full" disabled={!table || busy} onClick={submit}>
@@ -171,41 +211,64 @@ function Menu({ onPlaced }) {
     )
   }
 
-  const groups = [['food', 'Food'], ['drink', 'Drinks'], ['dessert', 'Dessert']]
-
   return (
     <>
       <h1>What are you having?</h1>
       <p className="muted">Everything is prepared to order. Times are a guide.</p>
       {error && <div className="banner pretend">{error}</div>}
 
-      {groups.map(([key, label]) => {
+      {CATEGORIES.map(([key, label, colour]) => {
         const group = items.filter(i => i.category === key)
         if (!group.length) return null
+        const isOpen = openCat === key
         return (
-          <section key={key}>
-            <div className="section-head">
-              <h2>{label}</h2><span className="count">{group.length} items</span>
-            </div>
-            {group.map(item => (
-              <div className="card item" key={item.id}>
-                <div className="item-body">
-                  <div className="item-name">{item.name}</div>
-                  <div className="item-desc">{item.description}</div>
-                  <div className="item-meta">
-                    <span className="price">{naira(item.price)}</span>
-                    <span className="pill time">{item.prep_minutes} min</span>
-                  </div>
-                </div>
-                {cart[item.id]
-                  ? <div className="qty">
-                      <button onClick={() => sub(item.id)}>−</button>
-                      <span>{cart[item.id]}</span>
-                      <button onClick={() => add(item.id)}>+</button>
+          <section key={key} className="cat">
+            <button className={`cat-head ${colour} ${isOpen ? 'open' : ''}`}
+                    onClick={() => setOpenCat(isOpen ? null : key)}
+                    aria-expanded={isOpen}>
+              <span className="cat-name">{label}</span>
+              <span className="cat-right">
+                <span className="cat-count">{group.length}</span>
+                <svg className="cat-chev" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2"
+                        strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+            </button>
+
+            {isOpen && (
+              <div className="cat-body">
+                {group.map(item => (
+                  <div className="card item" key={item.id}>
+                    {item.image_url && (
+                      <img className="item-img" src={item.image_url} alt={item.name}
+                           onError={e => { e.target.style.display = 'none' }} />
+                    )}
+                    <div className="item-body">
+                      <div className="item-name">{item.name}</div>
+                      <div className="item-desc">{item.description}</div>
+                      <div className="item-meta">
+                        <span className="price">{naira(item.price)}</span>
+                        <span className="pill time">{item.prep_minutes} min</span>
+                      </div>
+                      {item.allergens?.length > 0 && (
+                        <div className="allergens">
+                          <span className="allergens-label">Contains</span>
+                          {item.allergens.map(a => <span className="pill allergen" key={a}>{a}</span>)}
+                        </div>
+                      )}
                     </div>
-                  : <button className="btn ghost" onClick={() => add(item.id)}>Add</button>}
+                    {cart[item.id]
+                      ? <div className="qty">
+                          <button onClick={() => sub(item.id)} aria-label={'Remove one ' + item.name}>−</button>
+                          <span>{cart[item.id]}</span>
+                          <button onClick={() => add(item.id)} aria-label={'Add one ' + item.name}>+</button>
+                        </div>
+                      : <button className="btn ghost" onClick={() => add(item.id)}>Add</button>}
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </section>
         )
       })}
@@ -215,7 +278,7 @@ function Menu({ onPlaced }) {
           <div className="cartbar-inner">
             <div>
               <div style={{ fontWeight: 600 }}>{count} item{count > 1 ? 's' : ''}</div>
-              <div className="price">{naira(total)}</div>
+              <div className="price">{naira(subtotal)}</div>
             </div>
             <button className="btn primary" onClick={() => setCheckout(true)}>Review order</button>
           </div>
@@ -227,19 +290,20 @@ function Menu({ onPlaced }) {
 
 /* ---------------- CUSTOMER: ORDER STATUS ---------------- */
 
-function OrderStatus({ id, onNew }) {
+function OrderStatus({ id, onBrowse, onNew }) {
   const [order, setOrder] = useState(null)
   const [now, setNow] = useState(Date.now())
   const [score, setScore] = useState(0)
   const [comment, setComment] = useState('')
   const [reason, setReason] = useState('')
+  const [takeaway, setTakeaway] = useState(false)
   const [msg, setMsg] = useState('')
 
   const load = () => fetch('/api/orders/' + id).then(r => r.json()).then(setOrder)
   useEffect(() => { load() }, [id])
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000)
-    const p = setInterval(load, 10000)
+    const p = setInterval(load, 8000)
     return () => { clearInterval(t); clearInterval(p) }
   }, [id])
 
@@ -250,6 +314,7 @@ function OrderStatus({ id, onNew }) {
   const over = left < 0
   const mm = Math.floor(Math.abs(left) / 60)
   const ss = String(Math.abs(left) % 60).padStart(2, '0')
+  const served = order.status === 'served' || order.status === 'paid'
 
   async function post(path, body, done) {
     const res = await fetch(`/api/orders/${id}/${path}`, {
@@ -266,9 +331,12 @@ function OrderStatus({ id, onNew }) {
       <p className="muted">
         Table {order.table_number} · <span className={'status ' + order.status}>{order.status}</span>
       </p>
+            <button className="btn ghost" style={{ marginBottom: 14 }} onClick={onBrowse}>
+        ← Browse the menu
+      </button>
 
       {order.status !== 'paid' && (
-        <div className={'timer' + (over ? ' over' : '')}>
+        <div className={'timer' + (over ? ' over' : '')} aria-live="polite">
           <div className="value">{mm}:{ss}</div>
           <div className="label">{over ? 'over the estimate' : 'estimated wait remaining'}</div>
         </div>
@@ -281,6 +349,9 @@ function OrderStatus({ id, onNew }) {
             <span className="price">{naira(Number(it.unit_price) * it.quantity)}</span>
           </div>
         ))}
+        <div className="row"><span className="muted">Subtotal</span><span>{naira(order.subtotal)}</span></div>
+        <div className="row"><span className="muted">VAT (7.5%)</span><span>{naira(order.vat)}</span></div>
+        <div className="row"><span className="muted">Service charge (5%)</span><span>{naira(order.service_charge)}</span></div>
         <div className="row"><strong>Total</strong><strong className="price">{naira(order.total_amount)}</strong></div>
       </div>
 
@@ -297,28 +368,32 @@ function OrderStatus({ id, onNew }) {
 
       {order.status !== 'paid' && (
         <>
-          <div className="card">
-            <h3 style={{ marginBottom: 10 }}>How was it?</h3>
-            <div className="stars">
-              {[1, 2, 3, 4, 5].map(n => (
-                <button key={n} className={n <= score ? 'on' : ''} onClick={() => setScore(n)}>★</button>
-              ))}
+          {served ? (
+            <div className="card">
+              <h3 style={{ marginBottom: 10 }}>How was it?</h3>
+              <div className="stars" role="group" aria-label="Rating out of five">
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button key={n} className={n <= score ? 'on' : ''} onClick={() => setScore(n)}
+                          aria-label={n + ' star' + (n > 1 ? 's' : '')}
+                          aria-pressed={n <= score}>★</button>
+                ))}
+              </div>
+              <div className="field" style={{ marginTop: 12 }}>
+                <textarea rows="2" value={comment} onChange={e => setComment(e.target.value)}
+                  placeholder="Anything you'd like to add" aria-label="Rating comment" />
+              </div>
+              <button className="btn ghost full" disabled={!score}
+                onClick={() => post('rating', { score, comment }, 'Thank you, your rating has been saved.')}>
+                Submit rating
+              </button>
             </div>
-            <div className="field" style={{ marginTop: 12 }}>
-              <textarea rows="2" value={comment} onChange={e => setComment(e.target.value)}
-                placeholder="Anything you'd like to add" />
-            </div>
-            <button className="btn ghost full" disabled={!score}
-              onClick={() => post('rating', { score, comment }, 'Thank you, your rating has been saved.')}>
-              Submit rating
-            </button>
-          </div>
+          ) : null}
 
           <div className="card">
             <h3 style={{ marginBottom: 10 }}>Something wrong?</h3>
             <div className="field">
               <textarea rows="2" value={reason} onChange={e => setReason(e.target.value)}
-                placeholder="Tell us what happened" />
+                placeholder="Tell us what happened" aria-label="Complaint" />
             </div>
             <button className="btn ghost full" disabled={!reason.trim()}
               onClick={() => { post('complaints', { reason }, 'Your complaint has been logged.'); setReason('') }}>
@@ -333,9 +408,21 @@ function OrderStatus({ id, onNew }) {
 
           <div className="card">
             <div className="banner pretend">Payment is simulated. No money changes hands.</div>
-            <button className="btn primary full"
-              onClick={() => post('payment', { method: 'card' }, 'Paid. Thank you.')}>
-              Pay {naira(order.total_amount)}
+            {!served && (
+              <p className="muted" style={{ marginTop: 0 }}>
+                You pay on your way out. The bill unlocks once your order has been served.
+              </p>
+            )}
+            {served && (
+              <div className="field checkline" style={{ marginBottom: 14 }}>
+                <input id="ta" type="checkbox" checked={takeaway}
+                       onChange={e => setTakeaway(e.target.checked)} />
+                <label htmlFor="ta" style={{ margin: 0 }}>Pack my leftovers to take away</label>
+              </div>
+            )}
+            <button className="btn primary full" disabled={!served}
+              onClick={() => post('payment', { method: 'card', takeaway }, 'Paid. Thank you.')}>
+              {served ? `Pay ${naira(order.total_amount)}` : 'Waiting to be served'}
             </button>
           </div>
         </>
@@ -347,7 +434,13 @@ function OrderStatus({ id, onNew }) {
           <p className="muted" style={{ marginTop: 4 }}>
             Paid by {order.payment?.method} · simulated payment
           </p>
-          <div className="row"><span>Order #{order.id}, table {order.table_number}</span>
+          <div className="row"><span className="muted">Subtotal</span><span>{naira(order.subtotal)}</span></div>
+          <div className="row"><span className="muted">VAT (7.5%)</span><span>{naira(order.vat)}</span></div>
+          <div className="row"><span className="muted">Service charge (5%)</span><span>{naira(order.service_charge)}</span></div>
+          {order.takeaway && (
+            <div className="row"><span className="muted">Leftovers</span><span>Packed to take away</span></div>
+          )}
+          <div className="row"><strong>Order #{order.id}, table {order.table_number}</strong>
             <strong className="price">{naira(order.total_amount)}</strong></div>
           <button className="btn ghost full" style={{ marginTop: 12 }} onClick={onNew}>
             Start a new order
@@ -390,11 +483,12 @@ function WaiterView() {
                 <div className="item-name">Order #{o.id} · Table {o.table_number}</div>
                 <div className="item-meta" style={{ marginTop: 6 }}>
                   <span className={'status ' + o.status}>{o.status}</span>
-                  {late && <span className="pill" style={{ background: '#FFE2D8', color: '#E04A05' }}>overdue</span>}
+                  {late && <span className="pill urgent">overdue</span>}
                   {Number(o.complaint_count) > 0 &&
-                    <span className="pill" style={{ background: '#FFE2D8', color: '#E04A05' }}>
+                    <span className="pill urgent">
                       {o.complaint_count} complaint{o.complaint_count > 1 ? 's' : ''}</span>}
                   {o.rating_score && <span className="pill">{'★'.repeat(o.rating_score)}</span>}
+                  {o.takeaway && <span className="pill">takeaway</span>}
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
@@ -425,8 +519,9 @@ function WaiterOrder({ id, onBack }) {
 
   if (!order) return <div className="empty">Loading…</div>
 
-  const hasDrinks = order.items.some(i => i.category === 'drink')
-  const hasFood = order.items.some(i => i.category !== 'drink')
+  const fromBar = c => c === 'non-alcoholic' || c === 'alcoholic'
+  const hasBar = order.items.some(i => fromBar(i.category))
+  const hasKitchen = order.items.some(i => !fromBar(i.category))
 
   async function save(served) {
     const res = await fetch(`/api/orders/${id}/assign`, {
@@ -455,35 +550,41 @@ function WaiterOrder({ id, onBack }) {
       <div className="card">
         {order.items.map((it, n) => (
           <div className="row" key={n}>
-            <span>{it.quantity} × {it.name} <span className="pill">{it.category}</span></span>
+            <span>{it.quantity} × {it.name} <span className="pill">{fromBar(it.category) ? 'bar' : 'kitchen'}</span></span>
             <span className="price">{naira(Number(it.unit_price) * it.quantity)}</span>
           </div>
         ))}
+        <div className="row"><span className="muted">Subtotal</span><span>{naira(order.subtotal)}</span></div>
+        <div className="row"><span className="muted">VAT + service</span>
+          <span>{naira(Number(order.vat) + Number(order.service_charge))}</span></div>
         <div className="row"><strong>Total</strong><strong className="price">{naira(order.total_amount)}</strong></div>
+        {order.takeaway && (
+          <div className="row"><span className="muted">Leftovers</span><span>Packed to take away</span></div>
+        )}
       </div>
 
       <div className="card">
         <h3 style={{ marginBottom: 12 }}>Who prepared this order</h3>
 
         <div className="field">
-          <label>Waiter</label>
-          <select value={waiter} onChange={e => setWaiter(e.target.value)}>
+          <label htmlFor="w">Waiter</label>
+          <select id="w" value={waiter} onChange={e => setWaiter(e.target.value)}>
             <option value="">Select a waiter</option>
             {pick('waiter').map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </div>
 
         <div className="field">
-          <label>Chef {!hasFood && <span className="muted">— no food on this order</span>}</label>
-          <select value={chef} disabled={!hasFood} onChange={e => setChef(e.target.value)}>
+          <label htmlFor="c">Chef {!hasKitchen && <span className="muted">— nothing from the kitchen</span>}</label>
+          <select id="c" value={chef} disabled={!hasKitchen} onChange={e => setChef(e.target.value)}>
             <option value="">Select a chef</option>
             {pick('chef').map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </div>
 
         <div className="field">
-          <label>Bartender {!hasDrinks && <span className="muted">— no drinks on this order</span>}</label>
-          <select value={bartender} disabled={!hasDrinks} onChange={e => setBartender(e.target.value)}>
+          <label htmlFor="b">Bartender {!hasBar && <span className="muted">— nothing from the bar</span>}</label>
+          <select id="b" value={bartender} disabled={!hasBar} onChange={e => setBartender(e.target.value)}>
             <option value="">Select a bartender</option>
             {pick('bartender').map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>

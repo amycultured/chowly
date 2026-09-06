@@ -237,3 +237,55 @@ input:focus, select:focus, textarea:focus {
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+/* ---------- menu item extras ---------- */
+.item-img {
+  width: 84px; height: 84px; object-fit: cover;
+  border-radius: 10px; flex-shrink: 0;
+}
+.allergens {
+  display: flex; align-items: center; gap: 6px;
+  flex-wrap: wrap; margin-top: 8px;
+}
+.allergens-label {
+  font-size: .7rem; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--clay); font-weight: 600;
+}
+.pill.allergen { background: #FDEDE6; color: #B4491F; }
+.pill.urgent { background: #FFE2D8; color: #E04A05; }
+
+.checkline { display: flex; align-items: center; gap: 10px; }
+.checkline input { width: auto; }
+/* ---------- collapsible categories ---------- */
+.cat { margin-bottom: 10px; }
+
+.cat-head {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  font: inherit; font-weight: 700; cursor: pointer;
+  font-family: Fraunces, serif; font-size: 1.15rem;
+  padding: 15px 18px; border: 0; border-radius: 14px;
+  transition: filter .15s, transform .15s;
+}
+.cat-head:hover { filter: brightness(.96); }
+.cat-head:active { transform: scale(.995); }
+
+.cat-starters      { background: #FFE7D3; color: #A8480F; }
+.cat-nigerian      { background: #FFDCC2; color: #9C3D08; }
+.cat-international { background: #DFE9F6; color: #2E5A94; }
+.cat-sides         { background: #E4F0E2; color: #3D6639; }
+.cat-desserts      { background: #F6E4EF; color: #8C3D6E; }
+.cat-soft          { background: #DDF0EE; color: #1F6B63; }
+.cat-booze         { background: #EAE2F3; color: #5B4380; }
+
+.cat-right { display: flex; align-items: center; gap: 10px; }
+.cat-count {
+  font-family: Inter, sans-serif; font-size: .78rem; font-weight: 600;
+  background: rgba(255,255,255,.6); padding: 2px 9px; border-radius: 999px;
+}
+.cat-chev { width: 16px; height: 16px; transition: transform .2s; }
+.cat-head.open .cat-chev { transform: rotate(180deg); }
+
+.cat-body { padding-top: 10px; animation: unfold .22s ease both; }
+@keyframes unfold {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
+}
