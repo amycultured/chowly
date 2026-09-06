@@ -335,10 +335,27 @@ function OrderStatus({ id, onBrowse, onNew }) {
         ← Browse the menu
       </button>
 
-      {order.status !== 'paid' && (
+      {!served && (
         <div className={'timer' + (over ? ' over' : '')} aria-live="polite">
           <div className="value">{mm}:{ss}</div>
-          <div className="label">{over ? 'over the estimate' : 'estimated wait remaining'}</div>
+          <div className="label">{over ? 'delayed by' : 'estimated wait remaining'}</div>
+        </div>
+      )}
+
+      {served && order.status !== 'paid' && (
+        <div className="timer done">
+          <div className="value">Served</div>
+                   <div className="label">
+            {(() => {
+              const late = new Date(order.served_at).getTime() - ready
+              if (!order.served_at || late <= 0) return 'arrived on time'
+              const m = Math.floor(late / 60000)
+              const s = Math.floor((late % 60000) / 1000)
+              return m > 0
+                ? `arrived ${m} min ${s} sec late`
+                : `arrived ${s} sec late`
+            })()}
+          </div>
         </div>
       )}
 

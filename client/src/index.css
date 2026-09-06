@@ -289,3 +289,8 @@ input:focus, select:focus, textarea:focus {
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: none; }
 }
+.timer.done {
+  background: linear-gradient(160deg, #EDF6EC, #E2F0E0);
+  border-color: #C8E2C4;
+}
+.timer.done .value { color: var(--herb); font-size: 2rem; }
