@@ -119,7 +119,7 @@ function Menu({ onPlaced }) {
   const [tables, setTables] = useState([])
   const [cart, setCart] = useState({})
   const [table, setTable] = useState('')
-  const [openCat, setOpenCat] = useState('starters')
+  const [openCat, setOpenCat] = useState(null)
   const [checkout, setCheckout] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
