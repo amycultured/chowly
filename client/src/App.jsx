@@ -13,9 +13,26 @@ const CATEGORIES = [
 ]
 
 export default function App() {
-  const [role, setRole] = useState(null)
-  const [orderId, setOrderId] = useState(null)
-  const [view, setView] = useState('menu')
+  const [role, setRole] = useState(() => localStorage.getItem('chowly_role') || null)
+  const [orderId, setOrderId] = useState(() => {
+    const saved = localStorage.getItem('chowly_order_id')
+    return saved ? Number(saved) : null
+  })
+  const [view, setView] = useState(() => localStorage.getItem('chowly_view') || 'menu')
+
+  useEffect(() => {
+    if (role) localStorage.setItem('chowly_role', role)
+    else localStorage.removeItem('chowly_role')
+  }, [role])
+
+  useEffect(() => {
+    if (orderId) localStorage.setItem('chowly_order_id', String(orderId))
+    else localStorage.removeItem('chowly_order_id')
+  }, [orderId])
+
+  useEffect(() => {
+    localStorage.setItem('chowly_view', view)
+  }, [view])
 
   if (!role) return <Landing onPick={setRole} />
 
